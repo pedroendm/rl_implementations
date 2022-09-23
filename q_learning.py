@@ -17,32 +17,31 @@ EPSILON_DECAY = 0.1  # Value to be subtracted from epsilon in each reduction
 
 class Agent:
     def __init__(self, env):
-        self.env = env
         self.qtable = np.zeros(shape=(env.observation_space.n, env.action_space.n)) # Rows <-> State ; Cols <-> Action
-    
+        self.n_actions = env.action_space.n
+
     def get_action(self, state):
-        v = np.random.rand()
-        if v <= EPSILON: # Take Random Action with epsilon probability
-            return np.random.choice(self.qtable.shape[1]) # Number of columns is the number of actions
+        if np.random.rand() <= EPSILON: # Take Random Action with epsilon probability
+            return np.random.choice(self.n_actions)
         else: # Otherwise, Take Best Estimated Action
             return np.argmax(self.qtable[state])        
         
-    def observation(self, state, action, new_state, reward):
-        #print(self.qtable[new_state], np.max(self.qtable[new_state]))
+    def observation(self, state, action, reward, new_state, done):
         # Update qtable
         self.qtable[state][action] += ALPHA * (reward + GAMMA * np.max(self.qtable[new_state]) - self.qtable[state][action])
 
 if __name__ == "__main__":
-    env = gym.make("Taxi-v3", new_step_api=True)
+    env = gym.make("Taxi-v3")
 
     agent = Agent(env)
 
-    episodes = 1200
+    episodes = 1000
 
     ep_rewards = np.zeros(shape=episodes)
 
     for ep in range(episodes):
-        state = env.reset()
+        state = env.reset() # Just want the id of the state
+
         print(f"Episode {ep+1} starting...", end=" ")
 
         done = False        
@@ -50,15 +49,15 @@ if __name__ == "__main__":
         while not done:
             action = agent.get_action(state)
 
-            new_state, reward, terminated, truncated, info = env.step(action)
-            
+            next_state, reward, done, info = env.step(action)
+
             ep_rewards[ep] = ep_rewards[ep] + reward
 
-            done = terminated | truncated
+            #done = terminated | truncated
             
-            agent.observation(state, action, new_state, reward)
+            agent.observation(state, action, reward, next_state, done)
 
-            state = new_state
+            state = next_state
  
         # Decay epsilon in order to take less random actions as time goes
         if ep % 100 == 0: EPSILON -= EPSILON_DECAY      
@@ -76,16 +75,11 @@ if __name__ == "__main__":
     done = False
 
     while not done:
-        env.render()
+        env.render('human')
         action = agent.get_action(state)
 
-        new_state, reward, terminated, truncated, info = env.step(action)
-        print(f"In state {state}, took action {action}, to get to state {new_state}, and got a reward of {reward};")
-
-        done = terminated #| truncated
-
-        agent.observation(state, action, new_state, reward)
-    
-        state = new_state
+        print(f"In state {state},", end=" ")
+        state, reward, done, info = env.step(action)
+        print(f"took action {action}, to get to state {state}, and got a reward of {reward};")
 
     env.close()
